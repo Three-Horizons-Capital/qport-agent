@@ -1,7 +1,6 @@
 """PlanningSubAgent — wraps the qport Planning Agent for the FAST standalone webapp."""
 import json
 import logging
-import re
 from typing import Optional
 
 from fast_framework.contracts import SubAgent, AgentResponse, ActionChip, AgentCapabilities
@@ -9,7 +8,12 @@ from qport_agent.orchestrator import QportOrchestrator, PlanningNeedsInput
 
 logger = logging.getLogger(__name__)
 
-# Post-finalization chips
+# Deterministic chips for each interview phase
+_INTERVIEW_CHIPS = [
+    ActionChip(label="Looks good", intent_hint="Looks good, move to the next section"),
+    ActionChip(label="Show details", intent_hint="Show me the full parameter details"),
+]
+
 _FINALIZED_CHIPS = [
     ActionChip(label="Download Mandate", intent_hint="download_mandate"),
     ActionChip(label="Revise", intent_hint="revise_mandate"),
@@ -54,7 +58,7 @@ class PlanningSubAgent(SubAgent):
                 status="partial",
                 data=None,
                 reasoning=e.text,
-                action_chips=self._parse_chips(e.text),
+                action_chips=list(_INTERVIEW_CHIPS),
             )
         except RuntimeError as e:
             logger.error(f"Planning runtime error: {e}")
@@ -173,26 +177,6 @@ class PlanningSubAgent(SubAgent):
         """Check if the user wants to start a completely new mandate."""
         normalized = message.strip().lower()
         return normalized in _START_OVER_PHRASES
-
-    def _parse_chips(self, text: str) -> list[ActionChip]:
-        """Best-effort extraction of options from LLM bullet-point responses."""
-        chips = []
-        # Match: "- option (description)" or "1. option — description"
-        # or "- **option** (description)"
-        for line in text.split("\n"):
-            line = line.strip()
-            match = re.match(
-                r'(?:[-•*]|\d+[.)])\s+\*{0,2}([\w][\w\s/-]*[\w])\*{0,2}\s*(?:[—:(\[]|$)',
-                line,
-            )
-            if match:
-                label = match.group(1).strip()
-                if 2 < len(label) < 40:
-                    chips.append(ActionChip(
-                        label=label,
-                        intent_hint=label.lower().replace(" ", "_").replace("-", "_"),
-                    ))
-        return chips[:6]
 
     def _report_progress(self, method: str, *args, **kwargs):
         if self._progress and hasattr(self._progress, method):

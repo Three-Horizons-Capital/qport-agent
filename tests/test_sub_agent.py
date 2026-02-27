@@ -143,55 +143,48 @@ class TestStateTransitions:
         assert agent._last_mandate is None
 
 
-# ── Chip Parsing ──────────────────────────────────────────────────
+# ── Action Chips ─────────────────────────────────────────────────
 
 
-class TestChipParsing:
-    def test_bullet_points(self):
-        agent = _make_agent()
-        text = (
-            "Which template would you like?\n"
-            "- **multifactor** (factor-tilted portfolio)\n"
-            "- **long-short** (130/30 overlay)\n"
-            "- **benchmark-replication** (track with exclusions)\n"
-        )
-        chips = agent._parse_chips(text)
-        assert len(chips) == 3
-        assert chips[0].label == "multifactor"
-        assert chips[0].intent_hint == "multifactor"
-        assert chips[1].label == "long-short"
-        assert chips[2].label == "benchmark-replication"
+class TestActionChips:
+    def test_interview_chips_on_needs_input(self):
+        """PlanningNeedsInput returns deterministic interview chips."""
+        from qport_agent.orchestrator import PlanningNeedsInput
 
-    def test_numbered_list(self):
-        agent = _make_agent()
-        text = (
-            "Available factors:\n"
-            "1. value (composite value score)\n"
-            "2. momentum (cross-sectional momentum)\n"
-            "3. quality (financial quality)\n"
-        )
-        chips = agent._parse_chips(text)
-        assert len(chips) == 3
-        assert chips[0].label == "value"
+        orch = MockOrchestrator()
+        orch._plan_exception = PlanningNeedsInput("What benchmark?")
+        agent = _make_agent(orch)
 
-    def test_no_bullets_returns_empty(self):
-        agent = _make_agent()
-        text = "Great, I'll use those settings. Let me finalize the mandate."
-        chips = agent._parse_chips(text)
-        assert chips == []
+        response = agent.chat("Build a portfolio")
+        assert len(response.action_chips) == 2
+        assert response.action_chips[0].label == "Looks good"
+        assert response.action_chips[1].label == "Show details"
 
-    def test_caps_at_six(self):
-        agent = _make_agent()
-        lines = [f"- option{i} (description)" for i in range(10)]
-        text = "Choose:\n" + "\n".join(lines)
-        chips = agent._parse_chips(text)
-        assert len(chips) == 6
+    def test_finalized_chips_on_success(self):
+        """Finalized mandate returns Download/Revise/Start Over chips."""
+        orch = MockOrchestrator()
+        orch._plan_result = SAMPLE_RESULT
+        agent = _make_agent(orch)
 
-    def test_skips_long_labels(self):
-        agent = _make_agent()
-        text = "- This is a very long label that should be skipped because it exceeds forty characters in total (too long)\n"
-        chips = agent._parse_chips(text)
-        assert chips == []
+        response = agent.chat("S&P 500 value tilt")
+        assert len(response.action_chips) == 3
+        labels = [c.label for c in response.action_chips]
+        assert "Download Mandate" in labels
+        assert "Revise" in labels
+        assert "Start Over" in labels
+
+    def test_interview_chips_are_actionable_messages(self):
+        """Interview chip intent_hints are human-readable messages for the chat."""
+        from qport_agent.orchestrator import PlanningNeedsInput
+
+        orch = MockOrchestrator()
+        orch._plan_exception = PlanningNeedsInput("Section question")
+        agent = _make_agent(orch)
+
+        response = agent.chat("Build a portfolio")
+        # intent_hint is used as the message sent when chip is clicked
+        assert "looks good" in response.action_chips[0].intent_hint.lower()
+        assert "details" in response.action_chips[1].intent_hint.lower()
 
 
 # ── Error Handling ────────────────────────────────────────────────
