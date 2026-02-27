@@ -12,11 +12,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends gcc \
 COPY agents/fast-framework/ ./agents/fast-framework/
 RUN pip install --no-cache-dir -e "agents/fast-framework[all]"
 
-# Layer 2: qport packages (from quant-platform monorepo, vendored as submodules)
-COPY agents/qport-agent/vendor/qdata/ ./vendor/qdata/
-COPY agents/qport-agent/vendor/qport/ ./vendor/qport/
-COPY agents/qport-agent/vendor/qport-agent/ ./vendor/qport-agent/
+# Layer 2: qport packages (from quant-platform monorepo, vendored as submodule)
+COPY agents/qport-agent/vendor/quant-platform/packages/qdata/ ./vendor/qdata/
+COPY agents/qport-agent/vendor/quant-platform/packages/qport/ ./vendor/qport/
+COPY agents/qport-agent/vendor/quant-platform/packages/qdata-mcp/ ./vendor/qdata-mcp/
+COPY agents/qport-agent/vendor/quant-platform/packages/qport-mcp/ ./vendor/qport-mcp/
+COPY agents/qport-agent/vendor/quant-platform/packages/qport-agent/ ./vendor/qport-agent/
 RUN pip install --no-cache-dir -e vendor/qdata -e vendor/qport
+RUN pip install --no-deps --no-cache-dir -e vendor/qdata-mcp -e vendor/qport-mcp
 RUN pip install --no-deps --no-cache-dir -e vendor/qport-agent
 
 # Layer 3: Webapp package + dependencies
