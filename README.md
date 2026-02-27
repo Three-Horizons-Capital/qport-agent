@@ -67,6 +67,75 @@ Chips are deterministic by state — not extracted from LLM output:
 
 Delivered to the frontend via SSE `[ACTIONS]` events for per-message rendering.
 
+## Chat UX
+
+The webapp uses the FAST framework's React frontend — a dark-themed two-panel layout.
+
+### Layout
+
+```
+┌──────────────────────────────────────────────────────┐
+│  Portfolio Mandate Builder     Three Horizons Capital │  ← Header
+├──────────┬───────────────────────────────────────────┤
+│  Input   │  Analysis Report                          │
+│          │                                           │
+│          │  [A] Welcome message with example prompts │
+│          │                                           │
+│          │       [U] "Build me an S&P 500 value..."  │
+│          │                                           │
+│          │  [A] Section 1/6: Sleeves                 │
+│          │      ... sleeve summary ...               │
+│          │      ┌──────────┐ ┌──────────────┐        │
+│          │      │Looks good│ │Show details  │        │  ← Dynamic chips
+│          │      └──────────┘ └──────────────┘        │
+│          │                                           │
+│ ┌──────────────┐                                     │
+│ │Mandate Ready │  ┌──────────────────────────────┐   │
+│ │Download JSON │  │ Type a message...        Send │   │  ← Chat input
+│ └──────────────┘  └──────────────────────────────┘   │
+└──────────┴───────────────────────────────────────────┘
+```
+
+- **Left panel ("Input")**: Shows mandate download card when the interview finalizes. Upload is disabled for this app.
+- **Center panel ("Analysis Report")**: Chat conversation with streaming responses and embedded action chips.
+
+### Conversation Flow
+
+1. **Welcome message** — displays on load with example prompts (equity multifactor, credit multifactor, ESG replication, sampled index)
+2. **PM sends first message** — e.g., "Build me an S&P 500 value + momentum portfolio"
+3. **Agent responds with Section 1/6: Sleeves** — summarizes sleeve allocation in plain English, with two action chips:
+   - **"Looks good"** — confirms the section and advances to the next
+   - **"Show details"** — expands L2 default parameters for that section
+4. **Repeat for Sections 2-5** (Filters, Factors, Constraints, Extras) — same confirm/detail pattern
+5. **Section 6: Final Confirmation** — full expanded mandate in readable NL, with three chips:
+   - **"Download Mandate"** — triggers JSON download via the left panel
+   - **"Revise"** — re-enters the interview for targeted changes
+   - **"Start Over"** — resets state to idle for a new mandate
+
+### Streaming
+
+Responses stream line-by-line via Server-Sent Events (SSE). During streaming:
+- A "typing..." indicator with blinking cursor appears
+- Progress events show contextual status (e.g., "Analyzing request...")
+- Action chips appear after the response completes (attached to the final message)
+
+### Action Chips
+
+Chips render as rounded pill buttons below each assistant message:
+- **Emerald-colored** for qport domain actions
+- **Only the latest message's chips are clickable** — older chips are greyed out
+- Clicking a chip sends its `message` text as the next user message (with an `intent_hint` for backend routing)
+
+### Mandate Download
+
+When the agent finalizes a mandate, the backend emits a `[MANDATE]` SSE event with an `export_id`. The left panel shows a "Mandate Ready" card with a **"Download Mandate (JSON)"** button that fetches the full mandate JSON via `/api/mandate/download/{export_id}`.
+
+### Input
+
+- **Text area** at the bottom of the center panel — Enter to send, Shift+Enter for newline
+- Benchmark selector is disabled (not relevant for mandate building)
+- Static chip bar is disabled (dynamic chips via SSE replace it)
+
 ## Setup
 
 ### Prerequisites
