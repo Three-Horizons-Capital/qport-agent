@@ -55,7 +55,7 @@ app = create_app(
         "upload": False,
         "mandate": True,
         "benchmarks": False,
-        "action_chips": False,  # Disabled: frontend shows static chips even mid-conversation
+        "action_chips": False,  # Static bar disabled; dynamic chips come via [ACTIONS] SSE events
     },
     default_chips=[],
     allowed_providers=["google", "glm"],
