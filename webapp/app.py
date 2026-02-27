@@ -55,9 +55,9 @@ app = create_app(
         "upload": False,
         "mandate": True,
         "benchmarks": False,
-        "action_chips": True,
+        "action_chips": False,  # Disabled: frontend shows static chips even mid-conversation
     },
-    default_chips=_DEFAULT_CHIPS,
+    default_chips=[],
     allowed_providers=["google", "glm"],
     default_provider="google",
     frontend_dist=_frontend_dist,
